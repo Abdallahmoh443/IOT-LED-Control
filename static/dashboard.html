@@ -8,6 +8,7 @@
 
 </head>
 <body>
+
     <div class="container">
         <h1> IoT LED Control Dashboard</h1>
         
@@ -99,6 +100,11 @@
     <script>
         // LED control logic
         const leds = [1, 2, 3];
+        
+        // Handle Web Socket
+        
+        var HOST = "ws://localhost:3000";
+        var ws = new WebSocket(HOST);
 
         leds.forEach(num => {
             const switchEl = document.getElementById(`led${num}-switch`);
@@ -132,8 +138,14 @@
                 sliderEl.disabled = !isOn;
                 updateLEDIcon(intensity, isOn);
                 
-                // TODO: Send WebSocket message
                 console.log(`LED ${num}: ${isOn ? 'ON' : 'OFF'}, Intensity: ${intensity}`);
+                
+                // Send WebSocket message
+                ws.send(JSON.stringify({
+                    id: num,
+                    status: isOn,
+                    intensity: 0
+                }))
             });
 
             // Slider event listener
@@ -144,8 +156,15 @@
                 valueEl.textContent = intensity;
                 updateLEDIcon(intensity, isOn);
                 
-                // TODO: Send WebSocket message
                 console.log(`LED ${num} Intensity: ${intensity}`);
+                
+                // Send WebSocket message
+                    ws.send(JSON.stringify({
+                    id: num,
+                    status: 1,
+                    intensity: intensity
+                }))
+
             });
 
             // Initialize
@@ -153,6 +172,13 @@
             updateLEDIcon(0, false);
         });
 
+        ws.onopen = () =>{
+            console.log("Hey Do You See Me");
+        }
+
+        ws.onmessage = (event) => {
+            console.log("Raw Message: ", event.data);
+        }
        
     </script>
 </body>
