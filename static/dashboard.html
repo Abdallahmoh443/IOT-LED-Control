@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT LED Control Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+
+</head>
+<body>
+    <div class="container">
+        <h1> IoT LED Control Dashboard</h1>
+        
+        <div class="led-grid">
+            <!-- LED 1 -->
+            <div class="led-control">
+                <div class="led-header">
+                    <h2 class="led-title">LED 1</h2>
+                    <div class="led-icon">
+                        <div class="led-bulb" id="led1-icon"></div>
+                    </div>
+                </div>
+                
+                <div class="switch-container">
+                    <span class="switch-label">Power</span>
+                    <label class="switch">
+                        <input type="checkbox" id="led1-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="intensity-container">
+                    <div class="intensity-label">
+                        <span>Intensity</span>
+                        <span class="intensity-value" id="led1-value">0</span>
+                    </div>
+                    <input type="range" min="0" max="255" value="0" class="intensity-slider" id="led1-slider">
+                </div>
+            </div>
+
+            <!-- LED 2 -->
+            <div class="led-control">
+                <div class="led-header">
+                    <h2 class="led-title">LED 2</h2>
+                    <div class="led-icon">
+                        <div class="led-bulb" id="led2-icon"></div>
+                    </div>
+                </div>
+                
+                <div class="switch-container">
+                    <span class="switch-label">Power</span>
+                    <label class="switch">
+                        <input type="checkbox" id="led2-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="intensity-container">
+                    <div class="intensity-label">
+                        <span>Intensity</span>
+                        <span class="intensity-value" id="led2-value">0</span>
+                    </div>
+                    <input type="range" min="0" max="255" value="0" class="intensity-slider" id="led2-slider">
+                </div>
+            </div>
+
+            <!-- LED 3 -->
+            <div class="led-control">
+                <div class="led-header">
+                    <h2 class="led-title">LED 3</h2>
+                    <div class="led-icon">
+                        <div class="led-bulb" id="led3-icon"></div>
+                    </div>
+                </div>
+                
+                <div class="switch-container">
+                    <span class="switch-label">Power</span>
+                    <label class="switch">
+                        <input type="checkbox" id="led3-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="intensity-container">
+                    <div class="intensity-label">
+                        <span>Intensity</span>
+                        <span class="intensity-value" id="led3-value">0</span>
+                    </div>
+                    <input type="range" min="0" max="255" value="0" class="intensity-slider" id="led3-slider">
+                </div>
+            </div>
+        </div>
+
+        <div class="status disconnected" id="status">
+            Disconnected from NodeMCU
+        </div>
+    </div>
+
+    <script>
+        // LED control logic
+        const leds = [1, 2, 3];
+
+        leds.forEach(num => {
+            const switchEl = document.getElementById(`led${num}-switch`);
+            const sliderEl = document.getElementById(`led${num}-slider`);
+            const valueEl = document.getElementById(`led${num}-value`);
+            const iconEl = document.getElementById(`led${num}-icon`);
+
+            // Update LED icon color based on intensity
+            function updateLEDIcon(intensity, isOn) {
+                if (!isOn || intensity === 0) {
+                    iconEl.style.background = 'radial-gradient(circle at 30% 30%, #555, #222)';
+                    iconEl.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.3)';
+                    iconEl.classList.remove('on');
+                } else {
+                    const brightness = intensity / 255;
+                    const r = Math.floor(255 * brightness);
+                    const g = Math.floor(200 * brightness);
+                    const b = Math.floor(50 * brightness);
+                    
+                    iconEl.style.background = `radial-gradient(circle at 30% 30%, rgb(${r}, ${g}, ${b}), rgb(${r*0.6}, ${g*0.6}, ${b*0.6}))`;
+                    iconEl.style.boxShadow = `0 0 ${20 + brightness * 20}px rgba(${r}, ${g}, ${b}, ${brightness})`;
+                    iconEl.classList.add('on');
+                }
+            }
+
+            // Switch event listener
+            switchEl.addEventListener('change', (e) => {
+                const isOn = e.target.checked;
+                const intensity = parseInt(sliderEl.value);
+                
+                sliderEl.disabled = !isOn;
+                updateLEDIcon(intensity, isOn);
+                
+                // TODO: Send WebSocket message
+                console.log(`LED ${num}: ${isOn ? 'ON' : 'OFF'}, Intensity: ${intensity}`);
+            });
+
+            // Slider event listener
+            sliderEl.addEventListener('input', (e) => {
+                const intensity = parseInt(e.target.value);
+                const isOn = switchEl.checked;
+                
+                valueEl.textContent = intensity;
+                updateLEDIcon(intensity, isOn);
+                
+                // TODO: Send WebSocket message
+                console.log(`LED ${num} Intensity: ${intensity}`);
+            });
+
+            // Initialize
+            sliderEl.disabled = true;
+            updateLEDIcon(0, false);
+        });
+
+       
+    </script>
+</body>
+</html>
