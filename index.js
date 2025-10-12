@@ -29,22 +29,41 @@ server.listen(port, () => {
   console.log(`listening at http://localhost:${port}`);
 });
 
+let leds = [
+  {status: false, intensity: 0},
+  {status: false, intensity: 0},
+  {status: false, intensity: 0}
+];
+
 // ws is the connected socket
 wss.on('connection', (ws) => {
     console.log("Connected to a WebSocket");
 
+    
+    wss.clients.forEach((client) =>{
+      if (client.readyState === WebSocket.OPEN){ // Connected client
+        for (let led = 0; led < leds.length; led++){
+          client.send(JSON.stringify({
+            id: led+1,
+            status: leds[led].status,
+            intensity: leds[led].intensity
+          }));
+        }
+      }
+    });
+
     ws.on('message', (data) => {
       const msg = JSON.parse(data);
       console.log("Received Data: ", msg);
-      
-      let i = 1;
+      leds[msg.id-1].status = msg.status;
+      leds[msg.id-1].intensity = msg.intensity;
+
 
       wss.clients.forEach((client) =>{
         if (client.readyState === WebSocket.OPEN){ // Connected client
           client.send(JSON.stringify(msg));
-          console.log('Client: ', i);
-          i++;
         }
       });
     });
+
 });
