@@ -102,9 +102,29 @@
         const leds = [1, 2, 3];
         
         // Handle Web Socket
-        
         var HOST = "ws://localhost:3000";
         var ws = new WebSocket(HOST);
+
+        // Update LED icon color based on intensity
+        function updateLEDIcon(iconEl, isOn, intensity) {
+
+            console.log("updateLEDIcon called: ", isOn);
+
+            if (!isOn) {
+                iconEl.style.background = 'radial-gradient(circle at 30% 30%, #555, #222)';
+                iconEl.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.3)';
+                iconEl.classList.remove('on');
+            } else {
+                const brightness = intensity / 255;
+                const r = Math.floor(255 * brightness);
+                const g = Math.floor(200 * brightness);
+                const b = Math.floor(50 * brightness);
+                
+                iconEl.style.background = `radial-gradient(circle at 30% 30%, rgb(${r}, ${g}, ${b}), rgb(${r*0.6}, ${g*0.6}, ${b*0.6}))`;
+                iconEl.style.boxShadow = `0 0 ${20 + brightness * 20}px rgba(${r}, ${g}, ${b}, ${brightness})`;
+                iconEl.classList.add('on');
+            }
+        }
 
         leds.forEach(num => {
             const switchEl = document.getElementById(`led${num}-switch`);
@@ -112,33 +132,10 @@
             const valueEl = document.getElementById(`led${num}-value`);
             const iconEl = document.getElementById(`led${num}-icon`);
 
-            // Update LED icon color based on intensity
-            function updateLEDIcon(intensity, isOn) {
-                if (!isOn || intensity === 0) {
-                    iconEl.style.background = 'radial-gradient(circle at 30% 30%, #555, #222)';
-                    iconEl.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.3)';
-                    iconEl.classList.remove('on');
-                } else {
-                    const brightness = intensity / 255;
-                    const r = Math.floor(255 * brightness);
-                    const g = Math.floor(200 * brightness);
-                    const b = Math.floor(50 * brightness);
-                    
-                    iconEl.style.background = `radial-gradient(circle at 30% 30%, rgb(${r}, ${g}, ${b}), rgb(${r*0.6}, ${g*0.6}, ${b*0.6}))`;
-                    iconEl.style.boxShadow = `0 0 ${20 + brightness * 20}px rgba(${r}, ${g}, ${b}, ${brightness})`;
-                    iconEl.classList.add('on');
-                }
-            }
-
+            // Event listeners only send messages to the server (they don't affect the state)
             // Switch event listener
             switchEl.addEventListener('change', (e) => {
                 const isOn = e.target.checked;
-                const intensity = parseInt(sliderEl.value);
-                
-                sliderEl.disabled = !isOn;
-                updateLEDIcon(intensity, isOn);
-                
-                console.log(`LED ${num}: ${isOn ? 'ON' : 'OFF'}, Intensity: ${intensity}`);
                 
                 // Send WebSocket message
                 ws.send(JSON.stringify({
@@ -151,17 +148,11 @@
             // Slider event listener
             sliderEl.addEventListener('input', (e) => {
                 const intensity = parseInt(e.target.value);
-                const isOn = switchEl.checked;
-                
-                valueEl.textContent = intensity;
-                updateLEDIcon(intensity, isOn);
-                
-                console.log(`LED ${num} Intensity: ${intensity}`);
                 
                 // Send WebSocket message
-                    ws.send(JSON.stringify({
+                ws.send(JSON.stringify({
                     id: num,
-                    status: 1,
+                    status: true,
                     intensity: intensity
                 }))
 
@@ -169,16 +160,25 @@
 
             // Initialize
             sliderEl.disabled = true;
-            updateLEDIcon(0, false);
+            updateLEDIcon(iconEl, 0, false);
         });
 
-        ws.onopen = () =>{
-            console.log("Hey Do You See Me");
-        }
-
         ws.onmessage = (event) => {
-            console.log("Raw Message: ", event.data);
-        }
+            const msg = JSON.parse(event.data);
+            console.log("Raw Message: ", msg);
+            
+            const switchEl = document.getElementById(`led${msg.id}-switch`);
+            const sliderEl = document.getElementById(`led${msg.id}-slider`);
+            const valueEl = document.getElementById(`led${msg.id}-value`);
+            const iconEl = document.getElementById(`led${msg.id}-icon`);
+            
+            switchEl.checked = msg.status;
+            sliderEl.disabled = !msg.status;
+            sliderEl.value = msg.intensity;
+            valueEl.textContent = parseInt(msg.intensity);
+
+            updateLEDIcon(iconEl, msg.status, msg.intensity); 
+        };
        
     </script>
 </body>

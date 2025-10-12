@@ -15,7 +15,7 @@ const SocketServer = require('ws').Server;
 const wss = new SocketServer({server});
 
 
-// Serve static files from the "static" directory at the web root
+// Server static files from the "static" directory at the web root
 app.use(express.static(path.join(__dirname, 'static')));
 
 const port = process.env.PORT || 3000;
@@ -29,14 +29,6 @@ server.listen(port, () => {
   console.log(`listening at http://localhost:${port}`);
 });
 
-let leds_status = [0, 0, 0]; // 0 for OFF, 1 for ON
-let leds_intensity = [0, 0, 0] // from 0 to 255
-
-let leds = [
-  {id: 1, status: 0, intensity: 0}, 
-  {id: 2, status: 0, intensity: 0}, 
-  {id: 3, status: 0, intensity: 0}];
-
 // ws is the connected socket
 wss.on('connection', (ws) => {
     console.log("Connected to a WebSocket");
@@ -44,6 +36,15 @@ wss.on('connection', (ws) => {
     ws.on('message', (data) => {
       const msg = JSON.parse(data);
       console.log("Received Data: ", msg);
-    })
+      
+      let i = 1;
 
-})
+      wss.clients.forEach((client) =>{
+        if (client.readyState === WebSocket.OPEN){ // Connected client
+          client.send(JSON.stringify(msg));
+          console.log('Client: ', i);
+          i++;
+        }
+      });
+    });
+});
