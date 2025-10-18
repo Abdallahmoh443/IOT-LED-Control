@@ -78,7 +78,6 @@ h1 {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
-
 .led-bulb::before {
     content: '';
     position: absolute;
@@ -90,12 +89,15 @@ h1 {
     background: rgba(255, 255, 255, 0.3);
 }
 
-    
 .led-bulb.on {
     animation: pulse 2s infinite;
 }
 
-
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
 
 .switch-container {
     display: flex;
@@ -218,14 +220,17 @@ input:checked + .slider:before {
     background: #f0f0f0;
     border-radius: 10px;
     color: #555;
+    font-weight: 500;
 }
 
 .status.connected {
     background: #d4edda;
     color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .status.disconnected {
     background: #f8d7da;
     color: #721c24;
+    border: 1px solid #f5c6cb;
 }
