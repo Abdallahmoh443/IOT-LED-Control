@@ -93,7 +93,7 @@
         </div>
 
         <div class="status disconnected" id="status">
-            Disconnected from NodeMCU
+            Disconnected from ESP32
         </div>
     </div>
 
@@ -105,11 +105,19 @@
         var HOST = "ws://localhost:3000";
         var ws = new WebSocket(HOST);
 
+        // Update connection status
+        ws.onopen = () => {
+            document.getElementById('status').textContent = "Connected to WebSocket Server";
+            document.getElementById('status').className = "status connected";
+        };
+
+        ws.onclose = () => {
+            document.getElementById('status').textContent = "Disconnected from WebSocket Server";
+            document.getElementById('status').className = "status disconnected";
+        };
+
         // Update LED icon color based on intensity
         function updateLEDIcon(iconEl, isOn, intensity) {
-
-            console.log("updateLEDIcon called: ", isOn);
-
             if (!isOn) {
                 iconEl.style.background = 'radial-gradient(circle at 30% 30%, #555, #222)';
                 iconEl.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.3)';
@@ -136,48 +144,85 @@
             // Switch event listener
             switchEl.addEventListener('change', (e) => {
                 const isOn = e.target.checked;
+                const intensity = parseInt(sliderEl.value);
                 
                 // Send WebSocket message
                 ws.send(JSON.stringify({
                     id: num,
                     status: isOn,
-                    intensity: 0
-                }))
+                    intensity: isOn ? intensity : 0
+                }));
             });
 
             // Slider event listener
             sliderEl.addEventListener('input', (e) => {
                 const intensity = parseInt(e.target.value);
+                valueEl.textContent = intensity;
                 
-                // Send WebSocket message
-                ws.send(JSON.stringify({
-                    id: num,
-                    status: true,
-                    intensity: intensity
-                }))
-
+                // Send WebSocket message only if LED is on
+                if (switchEl.checked) {
+                    ws.send(JSON.stringify({
+                        id: num,
+                        status: true,
+                        intensity: intensity
+                    }));
+                }
+                
+                // Update icon locally
+                updateLEDIcon(iconEl, switchEl.checked, intensity);
             });
 
             // Initialize
             sliderEl.disabled = true;
-            updateLEDIcon(iconEl, 0, false);
+            updateLEDIcon(iconEl, false, 0);
         });
 
         ws.onmessage = (event) => {
             const msg = JSON.parse(event.data);
-            console.log("Raw Message: ", msg);
+            console.log("Received Message: ", msg);
             
-            const switchEl = document.getElementById(`led${msg.id}-switch`);
-            const sliderEl = document.getElementById(`led${msg.id}-slider`);
-            const valueEl = document.getElementById(`led${msg.id}-value`);
-            const iconEl = document.getElementById(`led${msg.id}-icon`);
+            // Handle connection status message
+            if (msg.type === "connection_status") {
+                if (msg.esp32Connected) {
+                    document.getElementById('status').textContent = "Connected to ESP32";
+                    document.getElementById('status').className = "status connected";
+                } else {
+                    document.getElementById('status').textContent = "Disconnected from ESP32";
+                    document.getElementById('status').className = "status disconnected";
+                }
+                return;
+            }
             
-            switchEl.checked = msg.status;
-            sliderEl.disabled = !msg.status;
-            sliderEl.value = msg.intensity;
-            valueEl.textContent = parseInt(msg.intensity);
-
-            updateLEDIcon(iconEl, msg.status, msg.intensity); 
+            // Handle initialization message
+            if (msg.type === "init" && msg.leds) {
+                msg.leds.forEach((led, index) => {
+                    const switchEl = document.getElementById(`led${index+1}-switch`);
+                    const sliderEl = document.getElementById(`led${index+1}-slider`);
+                    const valueEl = document.getElementById(`led${index+1}-value`);
+                    const iconEl = document.getElementById(`led${index+1}-icon`);
+                    
+                    switchEl.checked = led.status;
+                    sliderEl.disabled = !led.status;
+                    sliderEl.value = led.intensity;
+                    valueEl.textContent = parseInt(led.intensity);
+                    updateLEDIcon(iconEl, led.status, led.intensity);
+                });
+                return;
+            }
+            
+            // Handle individual LED update
+            if (msg.id && msg.id >= 1 && msg.id <= 3) {
+                const switchEl = document.getElementById(`led${msg.id}-switch`);
+                const sliderEl = document.getElementById(`led${msg.id}-slider`);
+                const valueEl = document.getElementById(`led${msg.id}-value`);
+                const iconEl = document.getElementById(`led${msg.id}-icon`);
+                
+                switchEl.checked = msg.status;
+                sliderEl.disabled = !msg.status;
+                sliderEl.value = msg.intensity;
+                valueEl.textContent = parseInt(msg.intensity);
+                updateLEDIcon(iconEl, msg.status, msg.intensity);
+            }
         };
        
     </script>
