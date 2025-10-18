@@ -6,7 +6,7 @@ const app = express(); // Express application instance
 
 // the server that listens on a port and receives requests.
 const http = require('http');
-// the actual network server instance created by Node’s http module
+// the actual network server instance created by Node's http module
 const server = http.createServer(app); 
 
 // WebSocket (ws) needs a server to attach to
@@ -35,35 +35,76 @@ let leds = [
   {status: false, intensity: 0}
 ];
 
+// Track last ping time from ESP32
+let lastEsp32Ping = null;
+const ESP32_TIMEOUT = 10000; // 10 Seconds
+
 // ws is the connected socket
 wss.on('connection', (ws) => {
     console.log("Connected to a WebSocket");
 
-    
-    wss.clients.forEach((client) =>{
-      if (client.readyState === WebSocket.OPEN){ // Connected client
-        for (let led = 0; led < leds.length; led++){
-          client.send(JSON.stringify({
-            id: led+1,
-            status: leds[led].status,
-            intensity: leds[led].intensity
-          }));
-        }
-      }
-    });
+    // Send initial state to the new client
+    ws.send(JSON.stringify({
+        type: "init",
+        leds: leds
+    }));
+
+    // Communicate to all clients the current connection status with ESP32
+    ws.send(JSON.stringify({
+        type: "connection_status",
+        esp32Connected: lastEsp32Ping && (Date.now() - lastEsp32Ping <= ESP32_TIMEOUT)
+    }));
 
     ws.on('message', (data) => {
       const msg = JSON.parse(data);
       console.log("Received Data: ", msg);
-      leds[msg.id-1].status = msg.status;
-      leds[msg.id-1].intensity = msg.intensity;
+      
+      // تحديث وقت آخر ping من ESP32
+      if (msg.type === "esp32_ping") {
+          lastEsp32Ping = Date.now();
+          
+          // Communicate to all clients that ESP32 is connected
+          wss.clients.forEach((client) => {
+              if (client.readyState === 1) {
+                  client.send(JSON.stringify({
+                      type: "connection_status",
+                      esp32Connected: true
+                  }));
+              }
+          });
+          return;
+      }
+      
+      // Update LED state
+      if (msg.id && msg.id >= 1 && msg.id <= 3) {
+          leds[msg.id-1].status = msg.status;
+          leds[msg.id-1].intensity = msg.intensity;
 
-
-      wss.clients.forEach((client) =>{
-        if (client.readyState === WebSocket.OPEN){ // Connected client
-          client.send(JSON.stringify(msg));
-        }
-      });
+          // Broadcast to all connected clients
+          wss.clients.forEach((client) => {
+              if (client.readyState === 1) { // OPEN = 1
+                  client.send(JSON.stringify(msg));
+              }
+          });
+      }
     });
 
+    ws.on('close', () => {
+        console.log("Client disconnected");
+    });
 });
+
+setInterval(() => {
+  if (lastEsp32Ping && (Date.now() - lastEsp32Ping > ESP32_TIMEOUT)) {
+    lastEsp32Ping = null;
+    
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify({
+          type: "connection_status",
+          esp32Connected: false
+        }));
+      }
+    });
+  }
+}, 5000); 
